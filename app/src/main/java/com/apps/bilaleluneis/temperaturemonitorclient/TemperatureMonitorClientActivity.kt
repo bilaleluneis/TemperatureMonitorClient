@@ -2,7 +2,9 @@ package com.apps.bilaleluneis.temperaturemonitorclient
 
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import android.util.Log
 
@@ -17,21 +19,38 @@ import android.util.Log
 
 class TemperatureMonitorClientActivity : Activity() {
 
-    private val logTag = "TemperatureMonitorClientActivity"
+    private val logTag = "TempMonitorActivity"
     private val blueToothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+    private val blueToothBroadcastReceiver = BlueToothBroadcastReceiver()
+    private val currentlyPairedBlueToothDevices by lazy {getPairedBlueToothDevices()}
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_temperature_monitor_client)
+        enableBluetooth()
+        IntentFilter(BluetoothDevice.ACTION_FOUND).also {
+            registerReceiver(blueToothBroadcastReceiver, it)
+        }
+
+    }
+
+    override fun onDestroy() {
+
+        super.onDestroy()
+        unregisterReceiver(blueToothBroadcastReceiver)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+
         super.onActivityResult(requestCode, resultCode, data)
+
         if(resultCode == RESULT_OK){
             Log.d(logTag, "BlueTooth is now turned on !")
         }else if(resultCode == RESULT_CANCELED){
             Log.d(logTag, "BlueTooth failed to turn on !")
         }
+
     }
 
     private fun hasBlueToothSupport() : Boolean {
@@ -47,11 +66,26 @@ class TemperatureMonitorClientActivity : Activity() {
     }
 
     private fun enableBluetooth() {
-        if (hasBlueToothSupport()) {
+
+        blueToothAdapter?.let {
             Log.d(logTag, "Attempt to turn on BlueTooth on Device !")
-            Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE).also{
-                startActivityForResult(it, 10)
+            Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE).apply {
+                startActivityForResult(this, 10)//TODO: create a constant
             }
         }
+
     }
+
+    private fun getPairedBlueToothDevices() : Set<BluetoothDevice> {
+
+        blueToothAdapter?.let{
+            for(blueToothDevice in blueToothAdapter.bondedDevices){
+                Log.d(logTag, "Found Device with name ${blueToothDevice.name}")
+                Log.d(logTag,"${blueToothDevice.name} address is ${blueToothDevice.address}")
+            }
+        }
+
+        return blueToothAdapter?.bondedDevices ?: emptySet()//emptySet()
+    }
+
 }
