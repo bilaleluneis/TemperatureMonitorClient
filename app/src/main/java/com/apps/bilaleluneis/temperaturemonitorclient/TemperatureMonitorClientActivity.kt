@@ -28,9 +28,14 @@ class TemperatureMonitorClientActivity : Activity() {
 
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_temperature_monitor_client)
-        enableBluetooth()
-        IntentFilter(BluetoothDevice.ACTION_FOUND).also {
-            registerReceiver(blueToothBroadcastReceiver, it)
+
+        if(enableBluetooth()) {
+            IntentFilter().apply {
+                addAction(BluetoothDevice.ACTION_FOUND)
+                addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED)
+                addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+            }.also { registerReceiver(blueToothBroadcastReceiver, it) }
+            blueToothAdapter?.startDiscovery()
         }
 
     }
@@ -65,15 +70,18 @@ class TemperatureMonitorClientActivity : Activity() {
 
     }
 
-    private fun enableBluetooth() {
+    private fun enableBluetooth() : Boolean {
 
         blueToothAdapter?.let {
             Log.d(logTag, "Attempt to turn on BlueTooth on Device !")
             Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE).apply {
                 startActivityForResult(this, 10)//TODO: create a constant
             }
+
+            return blueToothAdapter.isEnabled
         }
 
+        return false
     }
 
     private fun getPairedBlueToothDevices() : Set<BluetoothDevice> {
