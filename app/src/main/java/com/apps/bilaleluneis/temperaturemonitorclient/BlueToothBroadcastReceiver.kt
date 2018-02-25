@@ -13,7 +13,17 @@ import android.util.Log
  * bilaleluneis@gmail.com
  */
 
-class BlueToothBroadcastReceiver : BroadcastReceiver() {
+/**
+ * This is very cool way to do a broadcast receiver in separate class while still
+ * be able to expose the properties from activity.. basically the constructor takes
+ * a function and calls it... so that function could come from another class instance
+ * and will have access to that class instance properties without having to expose them
+ * here.
+ * see [TemperatureMonitorClientActivity.blueToothBroadcastReceiver]
+ * see [TemperatureMonitorClientActivity.processBlueToothDeviceFoundIntent]
+ * see [TemperatureMonitorClientActivity.onCreate] line 64 where receiver is registered
+ */
+class BlueToothBroadcastReceiver(private val intentProcessor: (intent: Intent) -> Unit) : BroadcastReceiver() {
 
     private val logTag = "BroadcastReceiver"
 
@@ -22,18 +32,8 @@ class BlueToothBroadcastReceiver : BroadcastReceiver() {
         when(intent?.action){
             BluetoothAdapter.ACTION_DISCOVERY_STARTED -> Log.d(logTag,"Discovery Started !")
             BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> Log.d(logTag,"Discovery Finished !")
-            BluetoothDevice.ACTION_FOUND -> processBlueToothDeviceFoundIntent(intent)
+            BluetoothDevice.ACTION_FOUND -> intentProcessor(intent)
             else -> Log.d(logTag, "unknown action received !")
-        }
-
-    }
-
-    private fun processBlueToothDeviceFoundIntent(intent: Intent){
-
-        Log.d(logTag, "Bluetooth device found !")
-        intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE).apply{
-            Log.d(logTag, "Bluetooth name is: $name")
-            Log.d(logTag, "Bluetooth address is $address")
         }
 
     }

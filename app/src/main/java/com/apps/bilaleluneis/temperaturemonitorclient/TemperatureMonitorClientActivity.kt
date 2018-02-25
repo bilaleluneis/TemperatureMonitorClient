@@ -4,15 +4,14 @@ import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Bundle
 import android.util.Log
+import android.widget.TextView
+import kotlinx.coroutines.experimental.android.UI
 import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.launch
-import java.io.InputStream
 import java.nio.charset.Charset
 import java.util.*
 
@@ -28,26 +27,14 @@ import java.util.*
 class TemperatureMonitorClientActivity : Activity() {
 
     private val logTag = "TempMonitorActivity"
-    private val blueToothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
-    private val currentlyPairedBlueToothDevices by lazy {getPairedBlueToothDevices()}
     private val uuid = UUID.fromString("4e5d48e0-75df-11e3-981f-0800200c9a66")
-    private var messageFromIotReader: InputStream? = null
-    private var bluetoothSocket: BluetoothSocket? = null
+    private val serverBluetoothName = "Temperature Monitor IoT"
+    private lateinit var display: TextView
+    private val blueToothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+    private val blueToothBroadcastReceiver = BlueToothBroadcastReceiver(::processBlueToothDeviceFoundIntent)
     private var iotBluetoothDevice: BluetoothDevice? = null
+    private var bluetoothSocket: BluetoothSocket? = null
 
-    //TODO: there has to be better way to do this!!
-    private val blueToothBroadcastReceiver = object: BroadcastReceiver(){
-        override fun onReceive(context: Context?, intent: Intent?) {
-
-            when(intent?.action){
-                BluetoothAdapter.ACTION_DISCOVERY_STARTED -> Log.d(logTag,"Discovery Started !")
-                BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> Log.d(logTag,"Discovery Finished !")
-                BluetoothDevice.ACTION_FOUND -> processBlueToothDeviceFoundIntent(intent)
-                else -> Log.d(logTag, "unknown action received !")
-            }
-
-        }
-    }
 
     private fun processBlueToothDeviceFoundIntent(intent: Intent){
 
@@ -55,7 +42,7 @@ class TemperatureMonitorClientActivity : Activity() {
         intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE).apply{
             Log.d(logTag, "Bluetooth name is: $name")
             Log.d(logTag, "Bluetooth address is $address")
-            if(name.equals("Temperature Monitor", true)){
+            if(name.equals(serverBluetoothName, true)){
                 Log.d(logTag, "assigning $name as device to connect to!")
                 iotBluetoothDevice = this
             }
@@ -67,6 +54,7 @@ class TemperatureMonitorClientActivity : Activity() {
 
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_temperature_monitor_client)
+        display = findViewById(R.id.textView)
 
         if(enableBluetooth()) {
             IntentFilter().apply {
@@ -83,22 +71,27 @@ class TemperatureMonitorClientActivity : Activity() {
                 }
                 Log.d(logTag, "bluetooth was discovered: ${iotBluetoothDevice?.name}")
                 bluetoothSocket = iotBluetoothDevice?.createRfcommSocketToServiceRecord(uuid)
+                if(bluetoothSocket?.isConnected!!){
+                    bluetoothSocket?.close()
+                }
                 bluetoothSocket?.connect()
                 Log.d(logTag, "bluetooth is now connected to temp sensor IoT !")
-                if(bluetoothSocket?.isConnected!!){
-                    Log.d(logTag, "bluetooth is connected check pass!")
-                }
-                messageFromIotReader = bluetoothSocket?.inputStream
-
+                val messageFromIotReader = bluetoothSocket?.inputStream
                 Log.d(logTag, "attempting to read from IoT output stream!")
                 if (messageFromIotReader != null) {
-                    var bytesReadCount = 0
+                    var bytesReadCount: Int
                     do {
+                        delay(2000)
                         val bytes = ByteArray(1024)
-                        bytesReadCount = messageFromIotReader?.read(bytes) ?: -1
-                        val messageFromServer = bytes.copyOfRange(0, bytesReadCount - 1)
-                        Log.d(logTag, "message read from IoT is ${messageFromServer.toString(Charset.defaultCharset())}")
+                        bytesReadCount = messageFromIotReader.read(bytes)
+                        bytes.copyOfRange(0, bytesReadCount).apply{
+                            val messageFromServer = toString(Charset.defaultCharset())
+                            Log.d(logTag, "message read from IoT is $messageFromServer")
+                            val uiUpdateJob = launch(UI){display.text =  messageFromServer}
+                            uiUpdateJob.join()
+                        }
                     }while(bytesReadCount > 0)
+                    messageFromIotReader?.close()
                 }
                 Log.d(logTag, "done pass to read from server!")
 
@@ -112,6 +105,9 @@ class TemperatureMonitorClientActivity : Activity() {
 
         super.onDestroy()
         unregisterReceiver(blueToothBroadcastReceiver)
+        bluetoothSocket?.close()
+        blueToothAdapter?.disable()
+
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
