@@ -20,7 +20,7 @@ import android.util.Log
  * and will have access to that class instance properties without having to expose them
  * here.
  * see [TemperatureMonitorClientActivity.blueToothBroadcastReceiver]
- * see [TemperatureMonitorClientActivity.processBlueToothDeviceFoundIntent]
+ * see [TemperatureMonitorClientActivity.assignBluetoothServer]
  * see [TemperatureMonitorClientActivity.onCreate] line 64 where receiver is registered
  */
 class BlueToothBroadcastReceiver(private val intentProcessor: (intent: Intent) -> Unit) : BroadcastReceiver() {

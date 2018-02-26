@@ -31,12 +31,12 @@ class TemperatureMonitorClientActivity : Activity() {
     private val serverBluetoothName = "Temperature Monitor IoT"
     private lateinit var display: TextView
     private val blueToothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
-    private val blueToothBroadcastReceiver = BlueToothBroadcastReceiver(::processBlueToothDeviceFoundIntent)
+    private val blueToothBroadcastReceiver = BlueToothBroadcastReceiver(::assignBluetoothServer)
     private var iotBluetoothDevice: BluetoothDevice? = null
     private var bluetoothSocket: BluetoothSocket? = null
 
 
-    private fun processBlueToothDeviceFoundIntent(intent: Intent){
+    private fun assignBluetoothServer(intent: Intent){
 
         Log.d(logTag, "Bluetooth device found !")
         intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE).apply{
@@ -136,7 +136,7 @@ class TemperatureMonitorClientActivity : Activity() {
 
     private fun enableBluetooth() : Boolean {
 
-        blueToothAdapter?.let {
+        blueToothAdapter?.let{
             Log.d(logTag, "Attempt to turn on BlueTooth on Device !")
             Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE).apply {
                 startActivityForResult(this, 10)//TODO: create a constant
@@ -146,18 +146,6 @@ class TemperatureMonitorClientActivity : Activity() {
         }
 
         return false
-    }
-
-    private fun getPairedBlueToothDevices() : Set<BluetoothDevice> {
-
-        blueToothAdapter?.let{
-            for(blueToothDevice in blueToothAdapter.bondedDevices){
-                Log.d(logTag, "Found Device with name ${blueToothDevice.name}")
-                Log.d(logTag,"${blueToothDevice.name} address is ${blueToothDevice.address}")
-            }
-        }
-
-        return blueToothAdapter?.bondedDevices ?: emptySet()//emptySet()
     }
 
 }
